@@ -362,7 +362,7 @@ if(wfoHint)wfoHint.textContent='WASD / flechas: moverte · ESPACIO: patear · En
 
 
 /* Audio real de tribuna y relator masculino */
-const wfoCrowdBed=new Audio('https://sfxmint.com/dl/stadium-crowd-03.mp3');
+const wfoCrowdBed=new Audio('https://sfxmint.com/dl/stadium-crowd-03.wav');
 wfoCrowdBed.loop=true;wfoCrowdBed.preload='auto';wfoCrowdBed.volume=.24;
 const wfoGoalRoar=new Audio('https://sfxmint.com/dl/stadium-crowd-02.mp3');
 wfoGoalRoar.preload='auto';wfoGoalRoar.volume=.95;
@@ -426,7 +426,7 @@ celebrateGoal=function(scored){
 const wfoStopWithRealCrowd=stopMatch;
 stopMatch=function(){
  wfoCrowdBed.pause();wfoGoalRoar.pause();wfoMenChant.pause();
- speechSynthesis.cancel();
+ if('speechSynthesis' in window)speechSynthesis.cancel();
  wfoStopWithRealCrowd();
 };
 
