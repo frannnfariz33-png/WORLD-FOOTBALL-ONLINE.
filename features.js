@@ -120,6 +120,7 @@ function wfoHandleOut(edge){
  speak('La pelota se fue afuera. La mandó '+outBy+'. Saca '+restart+'.');
  if(wfoLastTouch==='player'){opponent.x=ball.x;opponent.y=ball.y;}else{player.x=ball.x;player.y=ball.y;}
 }
+window.wfoHandleOut=wfoHandleOut;
 const wfoOldSquad=makeSquad;
 makeSquad=function(w,h){wfoOldSquad(w,h);if(wfoHeadMode){blueTeam=[];redTeam=[];player.x=w*.22;player.y=h*.5;opponent.x=w*.78;opponent.y=h*.5;}};
 const wfoOldDrawCharacter=drawCharacter;
