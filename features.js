@@ -41,4 +41,15 @@ if(typeof drawCharacter==='function'){const oldCharacter=drawCharacter;drawChara
 createTournament=function(){const pool=[...teams].sort(()=>Math.random()-.5).slice(0,16),groups=['A','B','C','D'];$('bracket').innerHTML=groups.map((g,i)=>'<div><b>GRUPO '+g+'</b>'+pool.slice(i*4,i*4+4).map((t,j)=>'<div class="match">'+(j+1)+'. '+t+'</div>').join('')+'<div class="match">Partidos: todos contra todos</div></div>').join('')+'<div class="tile" style="grid-column:1/-1"><b>ELIMINACIÓN DIRECTA</b><p class="muted">Los dos mejores de cada grupo clasifican a cuartos, semifinal y final. En esta versión el cuadro se sortea y se muestra; los resultados se completarán al jugar los partidos.</p></div>';$('bracket').scrollIntoView({behavior:'smooth',block:'nearest'})};
 if(typeof stopMatch==='function'){const oldStop=stopMatch;stopMatch=function(){if(scoreA>scoreB){career.wins++;career.trophies++;speak('¡Victoria! ¡Campeones!')}localStorage.setItem('wfoCareer',JSON.stringify(career));refresh();oldStop()}}
 
+/* Texturas procedurales del estadio y césped */
+const textureTile=document.createElement('canvas');textureTile.width=textureTile.height=128;const tctx=textureTile.getContext('2d');tctx.fillStyle='#176536';tctx.fillRect(0,0,128,128);for(let i=0;i<520;i++){const x=Math.random()*128,y=Math.random()*128;tctx.fillStyle=i%2?'rgba(210,255,190,.10)':'rgba(0,20,8,.12)';tctx.fillRect(x,y,1+Math.random()*2,1+Math.random()*3)}
+const grassPattern=tctx.createPattern(textureTile,'repeat');
+function drawStadiumTextures(w,h){if(!ctx)return;ctx.save();
+/* césped con grano y franjas de corte */ctx.globalAlpha=.28;ctx.fillStyle=grassPattern;ctx.fillRect(0,0,w,h);ctx.globalAlpha=1;
+/* tribunas, público y pasarelas */const band=Math.max(25,Math.min(42,h*.09));for(const y of [0,h-band]){const grad=ctx.createLinearGradient(0,y,0,y+band);grad.addColorStop(0,'#17232a');grad.addColorStop(1,'#34434a');ctx.fillStyle=grad;ctx.fillRect(0,y,w,band);for(let i=0;i<Math.floor(w/7);i++){const px=i*7+3;ctx.fillStyle=['#e8e8d8','#d94b42','#3f9bd7','#f0c64b','#a7d28d'][i%5];ctx.fillRect(px,y+6+(i%3)*3,3,4);ctx.fillStyle='rgba(255,255,255,.16)';ctx.fillRect(px-1,y+band-7,5,2)}ctx.fillStyle='#87969a';ctx.fillRect(0,y+band-3,w,3)}
+/* reflectores */for(const x of [w*.08,w*.92]){ctx.fillStyle='#dce8ed';ctx.fillRect(x-3,band+4,6,24);ctx.shadowColor='#fff6c7';ctx.shadowBlur=17;ctx.fillStyle='#fff5c7';for(let j=0;j<4;j++){ctx.beginPath();ctx.arc(x-8+j*5,band+5,2,0,Math.PI*2);ctx.fill()}ctx.shadowBlur=0}
+/* textura y red de arcos */ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1;for(const gx of [12,w-82]){ctx.strokeRect(gx,h*.38,70,h*.24);for(let yy=h*.38;yy<h*.62;yy+=8){ctx.beginPath();ctx.moveTo(gx,yy);ctx.lineTo(gx+70,yy);ctx.stroke()}for(let xx=gx;xx<gx+70;xx+=10){ctx.beginPath();ctx.moveTo(xx,h*.38);ctx.lineTo(xx,h*.62);ctx.stroke()}}
+ctx.restore()}
+if(typeof draw==='function'){const texturedDraw=draw;draw=function(w,h){texturedDraw(w,h);drawStadiumTextures(w,h)}}
+
 })();
