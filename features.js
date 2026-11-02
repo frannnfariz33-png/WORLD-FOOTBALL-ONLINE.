@@ -307,22 +307,53 @@ function wfoTeamBrain(team,attacksRight,dt,now){
   }
  });
 }
-const wfoOriginalLoopTactical=loop;
+
 loop=function(now){
  if(!canvas||$('game').classList.contains('hidden'))return;
- if(wfoCelebratingUntil&&now<wfoCelebratingUntil){draw(canvas.clientWidth,canvas.clientHeight);$('score').textContent=scoreA+' - '+scoreB;raf=requestAnimationFrame(loop);return;}
- const dt=Math.min((now-last)/1000,.04);
+ const dt=Math.min(Math.max((now-last)/1000,0),.04);last=now;elapsed+=dt;
+ const w=canvas.clientWidth,h=canvas.clientHeight,speed=230*dt;
+ if(wfoCelebratingUntil&&now<wfoCelebratingUntil){draw(w,h);$('score').textContent=scoreA+' - '+scoreB;raf=requestAnimationFrame(loop);return;}
+ let dx=0,dy=0;
+ if(keys.w||keys.arrowup)dy--;if(keys.s||keys.arrowdown)dy++;
+ if(keys.a||keys.arrowleft)dx--;if(keys.d||keys.arrowright)dx++;
+ const mag=Math.hypot(dx,dy)||1;
+ if(matchRole==='referee'){
+  referee.x=Math.max(24,Math.min(w-24,referee.x+dx/mag*speed));
+  referee.y=Math.max(24,Math.min(h-24,referee.y+dy/mag*speed));
+  if(keys.f){matchToast('📯 ¡Piiii! ¡Decisión del árbitro!');keys.f=false}
+  if(keys.c){matchToast('🟨 ¡Tarjeta amarilla!');keys.c=false}
+  if(keys.v){matchToast('🟥 ¡Tarjeta roja!');keys.v=false}
+ }else{
+  player.x=Math.max(24,Math.min(w-24,player.x+dx/mag*speed));
+  player.y=Math.max(24,Math.min(h-24,player.y+dy/mag*speed));
+ }
  if(matchRole==='player'&&!wfoHeadMode){
   wfoTeamBrain(blueTeam,true,dt,now);
   wfoTeamBrain([...redTeam,opponent],false,dt,now);
  }else if(matchRole==='player'&&wfoHeadMode){
-  const dx=ball.x-opponent.x,dy=ball.y-opponent.y,d=Math.hypot(dx,dy)||1;
-  wfoMoveAI(opponent,ball.x+dx/d*8,ball.y+dy/d*8,dt,190);
-  if(d<36&&now-wfoAiLastRed>850){const a=Math.atan2(canvas.clientHeight*.5-ball.y,8-ball.x);ball.vx=Math.cos(a)*440;ball.vy=Math.sin(a)*440;wfoAiLastRed=now}
+  const d=Math.hypot(ball.x-opponent.x,ball.y-opponent.y)||1;
+  wfoMoveAI(opponent,ball.x+(ball.x-opponent.x)/d*8,ball.y+(ball.y-opponent.y)/d*8,dt,190);
+  if(d<36&&now-wfoAiLastRed>850){const a=Math.atan2(h*.5-ball.y,8-ball.x);ball.vx=Math.cos(a)*440;ball.vy=Math.sin(a)*440;wfoAiLastRed=now}
  }
- wfoOriginalLoopTactical(now);
+ const playerDist=Math.hypot(ball.x-player.x,ball.y-player.y);
+ if(playerDist<34){const d=playerDist||1;ball.vx+=(ball.x-player.x)/d*42*dt;ball.vy+=(ball.y-player.y)/d*42*dt}
+ if(matchRole==='player'&&keys[' ']&&playerDist<76){
+  const a=Math.atan2(ball.y-player.y,ball.x-player.x);
+  ball.vx=Math.cos(a)*500;ball.vy=Math.sin(a)*500;keys[' ']=false;wfoLastTouch='player';
+ }
+ ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;ball.vx*=Math.pow(.985,dt*60);ball.vy*=Math.pow(.985,dt*60);
+ if(ball.x<8||ball.x>w-8){
+  if(ball.y>h*.32&&ball.y<h*.68){
+   const scoredRight=ball.x>w-8;if(scoredRight)scoreA++;else scoreB++;
+   celebrateGoal(scoredRight);ball.x=w*.5;ball.y=h*.5;ball.vx=ball.vy=0;
+  }else if(window.wfoHandleOut)window.wfoHandleOut('fondo');else{ball.x=Math.max(12,Math.min(w-12,ball.x));ball.vx*=-.7}
+ }else if(ball.y<15||ball.y>h-15){
+  if(window.wfoHandleOut)window.wfoHandleOut('lateral');else{ball.y=Math.max(15,Math.min(h-15,ball.y));ball.vy*=-.7}
+ }
+ draw(w,h);$('score').textContent=scoreA+' - '+scoreB;
+ $('clock').textContent=String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(Math.floor(elapsed%60)).padStart(2,'0');
+ raf=requestAnimationFrame(loop);
 };
-
 /* Controles claros para PC y móvil */
 const wfoHint=document.querySelector('.gamehint');
 if(wfoHint)wfoHint.textContent='WASD / flechas: moverte · ESPACIO: patear · En celular: joystick + ⚽';
