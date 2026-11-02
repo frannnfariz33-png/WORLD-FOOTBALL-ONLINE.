@@ -103,4 +103,71 @@ celebrateGoal=function(scored){wfoOriginalCelebrate(scored);const who=scored?wfo
 const wfoOriginalStart=startMatch;
 startMatch=function(){wfoFrames=[];wfoLastCall='';wfoLastCallAt=0;wfoOriginalStart();};
 
+
+/* Modo cabezón 1 contra 1, cinco estadios, festejo de 3 segundos y saques */
+const wfoExtra=document.createElement('div');wfoExtra.className='panel';
+wfoExtra.innerHTML='<h2>🎮 Modos y estadios</h2><div class="feature-grid"><div class="feature-card"><label class="field">Modo de juego<select id="wfoGameMode"><option value="normal">Fútbol con equipos</option><option value="head">Modo cabezón 1 vs 1</option></select></label><p>En modo cabezón jugás con un solo jugador contra un rival, con dos arcos y cancha ampliada.</p></div><div class="feature-card"><label class="field">Elegí cancha<select id="wfoGround"><option value="bombonera">La Bombonera</option><option value="monumental">Estadio Monumental</option><option value="national">Estadio Nacional</option><option value="night">Arena Nocturna</option><option value="sunset">Estadio del Atardecer</option></select></label><p>Tribunas y ambiente cambian según el estadio.</p></div></div>';
+section.insertBefore(wfoExtra,section.querySelector('.panel'));
+$('wfoStadium').innerHTML='<option value="classic">Clásico</option><option value="night">Final nocturna</option><option value="sunset">Atardecer</option><option value="indoor">Cubierto</option>';
+let wfoHeadMode=false,wfoGround='bombonera',wfoCelebratingUntil=0,wfoLastTouch='player',wfoCrowdContext=null,wfoCrowdTimer=0;
+function wfoHandleOut(edge){
+ const outBy=wfoLastTouch==='player'?'tu equipo':'equipo rival';
+ const restart=wfoLastTouch==='player'?'equipo rival':'tu equipo';
+ ball.vx=0;ball.vy=0;
+ if(edge==='lateral'){ball.x=Math.max(18,Math.min(canvas.clientWidth-18,ball.x));ball.y=ball.y<canvas.clientHeight/2?18:canvas.clientHeight-18;}
+ else {ball.x=ball.x<canvas.clientWidth/2?canvas.clientWidth*.18:canvas.clientWidth*.82;ball.y=canvas.clientHeight/2;}
+ matchToast('⚽ ¡Afuera! La mandó '+outBy+'. Saca '+restart+'.');
+ speak('La pelota se fue afuera. La mandó '+outBy+'. Saca '+restart+'.');
+ if(wfoLastTouch==='player'){opponent.x=ball.x;opponent.y=ball.y;}else{player.x=ball.x;player.y=ball.y;}
+}
+const wfoOldSquad=makeSquad;
+makeSquad=function(w,h){wfoOldSquad(w,h);if(wfoHeadMode){blueTeam=[];redTeam=[];player.x=w*.22;player.y=h*.5;opponent.x=w*.78;opponent.y=h*.5;}};
+const wfoOldDrawCharacter=drawCharacter;
+drawCharacter=function(x,y,color,skin,hair,flip){if(wfoHeadMode){ctx.save();ctx.translate(x,y);ctx.scale(1.38,1.38);wfoOldDrawCharacter(0,0,color,skin,hair,flip);ctx.restore()}else wfoOldDrawCharacter(x,y,color,skin,hair,flip)};
+const wfoOldDrawMode=draw;
+draw=function(w,h){
+ wfoOldDrawMode(w,h);
+ if(wfoHeadMode&&ctx){ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.strokeRect(12,h*.32,75,h*.36);ctx.strokeRect(w-87,h*.32,75,h*.36);ctx.fillStyle='rgba(5,15,10,.75)';ctx.fillRect(w*.35,8,w*.3,28);ctx.fillStyle='#fff';ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillText('MODO CABEZÓN · 1 VS 1',w/2,28);ctx.restore()}
+ if(ctx){ctx.save();const bands=Math.max(25,h*.08);for(const y of [0,h-bands]){ctx.fillStyle=wfoGround==='bombonera'?'#183d31':wfoGround==='monumental'?'#353b45':wfoGround==='national'?'#273c4d':'#202a37';ctx.fillRect(0,y,w,bands);for(let i=0;i<w/8;i++){ctx.fillStyle=['#e8e8e8','#e0bd39','#d64c43','#4185c7'][i%4];ctx.fillRect(i*8+2,y+7+(i%3)*4,4,4)}}ctx.restore()}
+};
+const wfoOldLoop=loop;
+loop=function(now){
+ if(wfoCelebratingUntil&&now<wfoCelebratingUntil){draw(canvas.clientWidth,canvas.clientHeight);$('score').textContent=scoreA+' - '+scoreB;raf=requestAnimationFrame(loop);return;}
+ wfoOldLoop(now);
+};
+const wfoOldCelebrate3=celebrateGoal;
+celebrateGoal=function(scored){
+ wfoCelebratingUntil=performance.now()+3000;
+ wfoOldCelebrate3(scored);
+ const box=$('goalCelebration');box.style.animation='none';box.style.display='flex';box.style.background='rgba(3,16,9,.72)';
+ box.style.animation='goalFlash 3s ease both';
+ $('goalSub').textContent=scored?'¡Fran y el equipo salen corriendo a festejar! ¡Saludo a la tribuna!':'¡El rival corre a festejar el gol!';
+ $('goalTitle').textContent=scored?'¡¡GOOOOL DE FRAN!!':'¡GOL DEL RIVAL!';
+ const dancers=box.querySelector('.celebration-dancers');if(dancers)dancers.innerHTML='<span>🏃</span><span>🙌</span><span>🏃</span><span>🕺</span>';
+ box.querySelector('.goal-emoji').textContent='⚽🎉🏟️';
+ if(wfoCrowdContext){const o=wfoCrowdContext.createOscillator(),g=wfoCrowdContext.createGain();o.type='sawtooth';o.frequency.value=95;g.gain.value=.025;o.connect(g);g.connect(wfoCrowdContext.destination);o.start();o.stop(wfoCrowdContext.currentTime+2.8)}
+ speak(scored?'¡La tribuna canta: Fran, Fran, Fran! ¡Golazo!':'¡La tribuna explota con el gol!');
+ setTimeout(()=>{box.classList.remove('show');box.style.display='none';box.style.animation='';wfoCelebratingUntil=0;},3000);
+};
+const wfoBaseStartExtra=startMatch;
+startMatch=function(){
+ wfoHeadMode=$('wfoGameMode').value==='head';wfoGround=$('wfoGround').value;
+ if(wfoCrowdContext){try{wfoCrowdContext.close()}catch(e){}}
+ const AC=window.AudioContext||window.webkitAudioContext;
+ if(AC){wfoCrowdContext=new AC();const osc=wfoCrowdContext.createOscillator(),gain=wfoCrowdContext.createGain(),filter=wfoCrowdContext.createBiquadFilter();osc.type='triangle';osc.frequency.value=68;filter.type='lowpass';filter.frequency.value=180;gain.gain.value=.012;osc.connect(filter);filter.connect(gain);gain.connect(wfoCrowdContext.destination);osc.start();}
+ wfoBaseStartExtra();
+ const stadiumNames={bombonera:'La Bombonera',monumental:'el Monumental',national:'el Estadio Nacional',night:'la Arena Nocturna',sunset:'el Estadio del Atardecer'};
+ speak('Desde '+stadiumNames[wfoGround]+', la tribuna ya está alentando.');
+};
+const wfoOldKick=kick;
+kick=function(power,curve){wfoLastTouch='player';wfoOldKick(power,curve)};
+const wfoOldCommentary=wfoCommentary;
+wfoCommentary=function(){
+ if(typeof player!=='undefined'&&typeof ball!=='undefined'){
+  if(Math.hypot(ball.x-player.x,ball.y-player.y)<50)wfoLastTouch='player';
+  else if(Math.hypot(ball.x-opponent.x,ball.y-opponent.y)<50)wfoLastTouch='rival';
+ }
+ wfoOldCommentary();
+};
+
 })();
