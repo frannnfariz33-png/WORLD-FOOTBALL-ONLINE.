@@ -359,4 +359,75 @@ loop=function(now){
 const wfoHint=document.querySelector('.gamehint');
 if(wfoHint)wfoHint.textContent='WASD / flechas: moverte · ESPACIO: patear · En celular: joystick + ⚽';
 
+
+
+/* Audio real de tribuna y relator masculino */
+const wfoCrowdBed=new Audio('https://sfxmint.com/dl/stadium-crowd-03.mp3');
+wfoCrowdBed.loop=true;wfoCrowdBed.preload='auto';wfoCrowdBed.volume=.24;
+const wfoGoalRoar=new Audio('https://sfxmint.com/dl/stadium-crowd-02.mp3');
+wfoGoalRoar.preload='auto';wfoGoalRoar.volume=.95;
+const wfoMenChant=new Audio('https://sfxmint.com/dl/crowd-chant-05.mp3');
+wfoMenChant.preload='auto';wfoMenChant.volume=.38;
+let wfoCrowdOn=true,wfoGoalRestoreTimer=0,wfoMaleVoice=null;
+function wfoPickMaleVoice(){
+ if(!('speechSynthesis' in window))return null;
+ const voices=speechSynthesis.getVoices().filter(v=>/^es([-_]|$)/i.test(v.lang));
+ const maleNames=/\b(male|jorge|diego|pablo|carlos|andres|andrés|juan|miguel|antonio|raul|raúl|luis|sergio|daniel|alvaro|álvaro|male voice)\b/i;
+ return voices.find(v=>maleNames.test(v.name))||voices.find(v=>/^es-AR/i.test(v.lang)&&maleNames.test(v.name))||null;
+}
+function wfoSpeakMale(line){
+ if(!$('wfoVoice').checked||!('speechSynthesis' in window))return;
+ speechSynthesis.cancel();
+ const u=new SpeechSynthesisUtterance(line);
+ u.lang='es-AR';u.rate=.94;u.pitch=.72;u.volume=1;
+ wfoMaleVoice=wfoMaleVoice||wfoPickMaleVoice();
+ if(wfoMaleVoice)u.voice=wfoMaleVoice;
+ speechSynthesis.speak(u);
+}
+speak=wfoSpeakMale;
+if('speechSynthesis' in window){
+ wfoMaleVoice=wfoPickMaleVoice();
+ speechSynthesis.addEventListener('voiceschanged',()=>{wfoMaleVoice=wfoPickMaleVoice()});
+}
+const wfoVoicePanel=[...section.querySelectorAll('.panel')].find(p=>p.textContent.includes('Relator'));
+if(wfoVoicePanel){
+ const crowdLabel=document.createElement('label');crowdLabel.className='field';
+ crowdLabel.innerHTML='<span><input id="wfoCrowdToggle" type="checkbox" checked style="width:auto"> Sonido de tribuna</span>';
+ wfoVoicePanel.append(crowdLabel);
+ const testCrowd=document.createElement('button');testCrowd.className='secondary';testCrowd.textContent='Probar hinchada';testCrowd.onclick=()=>{if(!wfoCrowdOn)return;wfoMenChant.currentTime=0;wfoMenChant.play().catch(()=>{})};
+ wfoVoicePanel.append(testCrowd);
+}
+function wfoSetCrowdEnabled(on){
+ wfoCrowdOn=on;
+ if(!on){wfoCrowdBed.pause();wfoGoalRoar.pause();wfoMenChant.pause()}
+ else if(!$('game').classList.contains('hidden'))wfoCrowdBed.play().catch(()=>{});
+}
+const wfoCrowdToggle=$('wfoCrowdToggle');
+if(wfoCrowdToggle)wfoCrowdToggle.addEventListener('change',()=>wfoSetCrowdEnabled(wfoCrowdToggle.checked));
+const wfoStartWithRealCrowd=startMatch;
+startMatch=function(){
+ wfoStartWithRealCrowd();
+ if(wfoCrowdOn){
+  wfoCrowdBed.volume=.24;wfoCrowdBed.play().catch(()=>{});
+  wfoMenChant.currentTime=0;wfoMenChant.play().catch(()=>{});
+ }
+};
+const wfoCelebrateWithRealCrowd=celebrateGoal;
+celebrateGoal=function(scored){
+ wfoCelebrateWithRealCrowd(scored);
+ if(wfoCrowdOn){
+  clearTimeout(wfoGoalRestoreTimer);
+  wfoGoalRoar.pause();wfoGoalRoar.currentTime=0;wfoGoalRoar.volume=.98;
+  wfoCrowdBed.volume=.58;
+  wfoGoalRoar.play().catch(()=>{});
+  wfoGoalRestoreTimer=setTimeout(()=>{wfoCrowdBed.volume=.24},5700);
+ }
+};
+const wfoStopWithRealCrowd=stopMatch;
+stopMatch=function(){
+ wfoCrowdBed.pause();wfoGoalRoar.pause();wfoMenChant.pause();
+ speechSynthesis.cancel();
+ wfoStopWithRealCrowd();
+};
+
 })();
