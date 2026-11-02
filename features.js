@@ -52,4 +52,55 @@ function drawStadiumTextures(w,h){if(!ctx)return;ctx.save();
 ctx.restore()}
 if(typeof draw==='function'){const texturedDraw=draw;draw=function(w,h){texturedDraw(w,h);drawStadiumTextures(w,h)}}
 
+
+/* Animaciones de movimiento, relato de posesión y repeticiones animadas */
+let wfoFrames=[],wfoReplayTimer=0,wfoReplayIndex=0,wfoLastCall='',wfoLastCallAt=0,wfoLastGoalAt=0;
+const wfoReplayCanvas=$('wfoReplayCanvas'),wfoReplayCtx=wfoReplayCanvas.getContext('2d');
+function wfoName(){return ($('wfoName').value||pdata.name||'Fran').trim()||'Fran'}
+function wfoCapture(){
+ if(typeof player==='undefined'||typeof ball==='undefined'||!canvas)return;
+ const now=performance.now();
+ wfoFrames.push({t:now,px:player.x,py:player.y,ox:opponent.x,oy:opponent.y,bx:ball.x,by:ball.y,blue:blueTeam.map(p=>({x:p.x,y:p.y})),red:redTeam.map(p=>({x:p.x,y:p.y})),w:canvas.clientWidth,h:canvas.clientHeight});
+ while(wfoFrames.length&&now-wfoFrames[0].t>11000)wfoFrames.shift();
+}
+function wfoReplayDraw(frame){
+ const c=wfoReplayCtx,cv=wfoReplayCanvas,w=cv.width,h=cv.height,sx=w/frame.w,sy=h/frame.h;
+ c.clearRect(0,0,w,h);c.fillStyle='#176033';c.fillRect(0,0,w,h);
+ for(let i=0;i<8;i++){c.fillStyle=i%2?'#1a6838':'#1b713d';c.fillRect(i*w/8,0,w/8,h)}
+ c.strokeStyle='#e6f6e7';c.lineWidth=3;c.strokeRect(12,12,w-24,h-24);c.beginPath();c.moveTo(w/2,12);c.lineTo(w/2,h-12);c.stroke();c.beginPath();c.arc(w/2,h/2,Math.min(h*.16,65),0,Math.PI*2);c.stroke();
+ const person=(x,y,color,phase)=>{x*=sx;y*=sy;c.save();c.translate(x,y);c.fillStyle='rgba(0,0,0,.22)';c.beginPath();c.ellipse(0,25,23,7,0,0,Math.PI*2);c.fill();c.strokeStyle='#17251c';c.lineWidth=6;c.lineCap='round';const step=Math.sin(phase)*6;c.beginPath();c.moveTo(-8,12);c.lineTo(-11+step,25);c.moveTo(8,12);c.lineTo(11-step,25);c.stroke();c.fillStyle=color;c.beginPath();c.roundRect(-15,-5,30,25,8);c.fill();c.fillStyle='#e5ad83';c.beginPath();c.arc(0,-22,23,0,Math.PI*2);c.fill();c.fillStyle='#34231c';c.beginPath();c.arc(0,-29,22,Math.PI,Math.PI*2);c.fill();c.fillStyle='#17251c';c.beginPath();c.arc(-8,-22,2.7,0,Math.PI*2);c.arc(8,-22,2.7,0,Math.PI*2);c.fill();c.restore()};
+ frame.blue.forEach(p=>person(p.x,p.y,'#268de8',frame.t/90));frame.red.forEach(p=>person(p.x,p.y,'#e33b3b',frame.t/90));person(frame.ox,frame.oy,'#f04444',frame.t/90);person(frame.px,frame.py,shirt,frame.t/90);
+ c.fillStyle='#fff';c.beginPath();c.arc(frame.bx*sx,frame.by*sy,10,0,Math.PI*2);c.fill();c.strokeStyle='#18251c';c.stroke();
+ c.fillStyle='#fff';c.font='bold 22px system-ui';c.fillText('REPETICIÓN',22,34);
+}
+function wfoPlayReplay(){
+ if(wfoFrames.length<8){$('wfoReplayText').textContent='Jugá unos segundos y después habrá una repetición animada.';return}
+ const end=performance.now(),frames=wfoFrames.filter(f=>end-f.t<6500);
+ if(frames.length<2)return;
+ cancelAnimationFrame(wfoReplayTimer);wfoReplayIndex=0;
+ $('wfoReplayText').textContent='▶ Reproduciendo la jugada en cámara lenta.';
+ const step=()=>{if(wfoReplayIndex>=frames.length){$('wfoReplayText').textContent='Repetición finalizada. Podés volver a verla.';return}wfoReplayDraw(frames[wfoReplayIndex++]);wfoReplayTimer=requestAnimationFrame(()=>setTimeout(step,55))};step();
+}
+$('wfoReplay').onclick=wfoPlayReplay;
+function wfoCommentary(){
+ if(!$('wfoVoice').checked||typeof player==='undefined'||!canvas||$('game').classList.contains('hidden'))return;
+ const now=performance.now();if(now-wfoLastCallAt<4800)return;
+ const dp=Math.hypot(ball.x-player.x,ball.y-player.y),doo=Math.hypot(ball.x-opponent.x,ball.y-opponent.y);
+ let line='';
+ if(dp<55)line='La tiene '+wfoName()+', encara el arco.';
+ else if(doo<55)line='La tiene el rival, busca el ataque.';
+ else if(ball.x<canvas.clientWidth*.42)line='La pelota va por el medio, se arma la jugada.';
+ else if(ball.x>canvas.clientWidth*.62)line='Atención, peligro frente al arco.';
+ if(line&&line!==wfoLastCall){wfoLastCall=line;wfoLastCallAt=now;speak(line)}
+}
+const wfoOriginalDraw=draw;
+draw=function(w,h){wfoOriginalDraw(w,h);wfoCapture();
+ if(typeof player!=='undefined'&&ctx){ctx.save();ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#07110e';ctx.fillStyle='#fff';const label=wfoName();ctx.strokeText(label,player.x,player.y-52);ctx.fillText(label,player.x,player.y-52);ctx.restore()}
+ wfoCommentary();
+};
+const wfoOriginalCelebrate=celebrateGoal;
+celebrateGoal=function(scored){wfoOriginalCelebrate(scored);const who=scored?wfoName():'el equipo rival';speak('¡Gol! '+who+'. Vamos a ver la repetición de la jugada.');setTimeout(wfoPlayReplay,1200)};
+const wfoOriginalStart=startMatch;
+startMatch=function(){wfoFrames=[];wfoLastCall='';wfoLastCallAt=0;wfoOriginalStart();};
+
 })();
