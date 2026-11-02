@@ -56,7 +56,7 @@ if(typeof draw==='function'){const texturedDraw=draw;draw=function(w,h){textured
 /* Animaciones de movimiento, relato de posesión y repeticiones animadas */
 let wfoFrames=[],wfoReplayTimer=0,wfoReplayIndex=0,wfoLastCall='',wfoLastCallAt=0,wfoLastGoalAt=0;
 const wfoReplayCanvas=$('wfoReplayCanvas'),wfoReplayCtx=wfoReplayCanvas.getContext('2d');
-function wfoName(){return ($('wfoName').value||pdata.name||'Fran').trim()||'Fran'}
+function wfoName(){return (($('wfoName')&&$('wfoName').value)||pdata.name||'Jugador').trim()||'Jugador'}
 function wfoCapture(){
  if(typeof player==='undefined'||typeof ball==='undefined'||!canvas)return;
  const now=performance.now();
@@ -142,12 +142,12 @@ celebrateGoal=function(scored){
  wfoOldCelebrate3(scored);
  const box=$('goalCelebration');box.style.animation='none';box.style.display='flex';box.style.background='rgba(3,16,9,.72)';
  box.style.animation='goalFlash 3s ease both';
- $('goalSub').textContent=scored?'¡Fran y el equipo salen corriendo a festejar! ¡Saludo a la tribuna!':'¡El rival corre a festejar el gol!';
- $('goalTitle').textContent=scored?'¡¡GOOOOL DE FRAN!!':'¡GOL DEL RIVAL!';
+ $('goalSub').textContent=scored?'¡'+wfoName()+' lo festeja con su equipo!':'¡El rival festeja el gol!';
+ $('goalTitle').textContent=scored?'¡GOLAZO!':'¡GOL DEL RIVAL!';
  const dancers=box.querySelector('.celebration-dancers');if(dancers)dancers.innerHTML='<span>🏃</span><span>🙌</span><span>🏃</span><span>🕺</span>';
  box.querySelector('.goal-emoji').textContent='⚽🎉🏟️';
  if(wfoCrowdContext){const o=wfoCrowdContext.createOscillator(),g=wfoCrowdContext.createGain();o.type='sawtooth';o.frequency.value=95;g.gain.value=.025;o.connect(g);g.connect(wfoCrowdContext.destination);o.start();o.stop(wfoCrowdContext.currentTime+2.8)}
- speak(scored?'¡La tribuna canta: Fran, Fran, Fran! ¡Golazo!':'¡La tribuna explota con el gol!');
+ speak(scored?'¡Golazo de '+wfoName()+'!':'¡Gol del rival!');
  setTimeout(()=>{box.classList.remove('show');box.style.display='none';box.style.animation='';wfoCelebratingUntil=0;},3000);
 };
 const wfoBaseStartExtra=startMatch;
@@ -178,7 +178,7 @@ wfoGoalFX.textContent=`
 #wfoGoalFX{position:absolute;inset:0;z-index:30;display:none;overflow:hidden;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;background:radial-gradient(circle at center,rgba(30,120,54,.88),rgba(2,10,7,.94));pointer-events:none}
 #wfoGoalFX.active{display:flex;animation:wfoGoalIn .28s ease-out both}
 #wfoGoalFX .fx-kicker{font-size:clamp(15px,3vw,25px);font-weight:1000;letter-spacing:5px;color:#fff;text-shadow:0 3px 8px #000;animation:wfoKick .5s ease-out both}
-#wfoGoalFX .fx-title{font-size:clamp(54px,13vw,120px);font-weight:1000;line-height:.9;color:#d7ff4f;-webkit-text-stroke:2px #173d1e;text-shadow:0 7px 0 #24552b,0 0 32px #fff;animation:wfoGoalZoom .65s cubic-bezier(.15,1.7,.35,1) both}
+#wfoGoalFX .fx-title{font-size:clamp(58px,14vw,132px);font-weight:1000;line-height:.9;color:#d7ff4f;-webkit-text-stroke:2px #173d1e;text-shadow:0 7px 0 #24552b,0 0 32px #fff;animation:wfoGoalZoom .65s cubic-bezier(.15,1.7,.35,1) both;letter-spacing:2px}#wfoGoalFX .fx-name{font-size:clamp(24px,6vw,54px);font-weight:1000;color:#fff;text-shadow:0 4px 0 #173d1e,0 0 18px #d7ff4f;animation:wfoNameFlash 1s steps(2,end) infinite}@keyframes wfoNameFlash{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.72;transform:scale(1.05)}
 #wfoGoalFX .fx-players{display:flex;gap:clamp(12px,4vw,38px);font-size:clamp(42px,9vw,76px);animation:wfoRun .55s ease-in-out infinite alternate}
 #wfoGoalFX .fx-players span:nth-child(2){animation:wfoJump .45s ease-in-out infinite alternate}
 #wfoGoalFX .fx-sub{font-size:clamp(16px,3.4vw,26px);font-weight:900;color:white;text-shadow:0 3px 8px #000;animation:wfoKick .7s .2s both}
@@ -194,7 +194,7 @@ wfoGoalFX.textContent=`
 document.head.append(wfoGoalFX);
 const wfoGoalBox=$('wfoGoalFX')||document.createElement('div');
 wfoGoalBox.id='wfoGoalFX';
-wfoGoalBox.innerHTML='<div class="fx-confetti"></div><div class="fx-kicker">WORLD FOOTBALL ONLINE</div><div class="fx-title">¡¡¡GOOOOL!!!</div><div class="fx-players"><span>🏃</span><span>🙌</span><span>⚽</span><span>🎉</span></div><div class="fx-sub">¡A FESTEJAR CON LA TRIBUNA!</div>';
+wfoGoalBox.innerHTML='<div class="fx-confetti"></div><div class="fx-kicker">WORLD FOOTBALL ONLINE</div><div class="fx-title">GOLAZO</div><div class="fx-name">Jugador</div><div class="fx-players"><span>🏃</span><span>🙌</span><span>⚽</span><span>🎉</span></div><div class="fx-sub">¡A FESTEJAR CON LA TRIBUNA!</div>';
 if(!wfoGoalBox.parentNode)$('game').querySelector('.gamewrap').append(wfoGoalBox);
 const wfoConfetti=wfoGoalBox.querySelector('.fx-confetti');
 for(let i=0;i<65;i++){const bit=document.createElement('i');bit.style.setProperty('--x',(Math.random()*100)+'%');bit.style.setProperty('--c',['#d7ff4f','#fff','#ffcf33','#39d7ff','#ff5b5b'][i%5]);bit.style.setProperty('--r',(Math.random()*180)+'deg');bit.style.setProperty('--d',(1.7+Math.random()*1.8)+'s');bit.style.setProperty('--delay',(-Math.random()*3)+'s');wfoConfetti.append(bit)}
@@ -202,8 +202,9 @@ const wfoCelebrateFinal=celebrateGoal;
 celebrateGoal=function(scored){
  wfoCelebrateFinal(scored);
  const title=wfoGoalBox.querySelector('.fx-title'),sub=wfoGoalBox.querySelector('.fx-sub');
- title.textContent=scored?'¡¡¡GOOOOL DE TU EQUIPO!!!':'¡¡¡GOL DEL RIVAL!!!';
- sub.textContent=scored?'¡CORRAN A FESTEJAR! ¡LA TRIBUNA EXPLOTA!':'¡El rival lo festeja con todo!';
+ title.textContent=scored?'GOLAZO':'GOL DEL RIVAL';
+ wfoGoalBox.querySelector('.fx-name').textContent=scored?wfoName():'Equipo rival';
+ sub.textContent=scored?'¡'+wfoName()+'!':'¡El rival lo festeja!';
  wfoGoalBox.classList.remove('active');void wfoGoalBox.offsetWidth;wfoGoalBox.classList.add('active');
  const oldPlayers=wfoGoalBox.querySelector('.fx-players');
  oldPlayers.innerHTML=scored?'<span>🏃</span><span>🙌</span><span>🕺</span><span>🎉</span>':'<span>😮</span><span>🏃</span><span>🙌</span>';
