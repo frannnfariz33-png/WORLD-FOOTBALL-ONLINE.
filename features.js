@@ -211,4 +211,120 @@ celebrateGoal=function(scored){
  window.wfoGoalFXTimer=setTimeout(()=>wfoGoalBox.classList.remove('active'),3000);
 };
 
+
+/* IA táctica: compañeros con roles, presión, cobertura y remates automáticos */
+const wfoTacticalStyle=document.createElement('style');
+wfoTacticalStyle.textContent=`
+.gamewrap{height:min(78vh,820px)!important;min-height:430px!important;aspect-ratio:16/9}
+.gamewrap canvas{touch-action:none}
+#wfoTouchControls{position:absolute;z-index:12;left:0;right:0;bottom:12px;display:none;align-items:end;justify-content:space-between;padding:0 18px;pointer-events:none}
+#wfoStickZone{width:142px;height:142px;border-radius:50%;background:rgba(4,18,12,.48);border:2px solid rgba(235,255,240,.58);position:relative;pointer-events:auto;touch-action:none;box-shadow:0 4px 22px #0007}
+#wfoStickKnob{position:absolute;width:58px;height:58px;left:40px;top:40px;border-radius:50%;background:linear-gradient(145deg,#f5fff7,#9db9a5);border:3px solid #294d35;box-shadow:0 3px 10px #0008;pointer-events:none}
+#wfoActionControls{display:flex;gap:12px;align-items:end;pointer-events:auto}
+#wfoKickButton{width:82px;height:82px;border-radius:50%;font-size:27px;background:linear-gradient(145deg,#d9ff72,#83c52c);border:4px solid #f2ffd8;box-shadow:0 5px 18px #0008;touch-action:none}
+#wfoFullButton{width:48px;height:48px;padding:0;border-radius:50%;background:#0a1b13dd;color:white;border:1px solid #b5d4bb}
+#wfoRotateHint{display:none;position:absolute;z-index:20;inset:0;background:#06140fee;color:white;align-items:center;justify-content:center;text-align:center;padding:25px;font-weight:900;font-size:20px;pointer-events:none}
+@media(max-width:800px){#wfoTouchControls{display:flex}.gamehint{display:none}.mobile-controls{display:none!important}}
+@media(max-width:800px) and (orientation:landscape){.gamewrap{height:calc(100dvh - 118px)!important;min-height:250px!important;aspect-ratio:auto}}
+@media(max-width:800px) and (orientation:portrait){#wfoRotateHint{display:flex}}
+@media(max-height:500px) and (orientation:landscape){#wfoTouchControls{bottom:5px;padding:0 10px}#wfoStickZone{width:104px;height:104px}#wfoStickKnob{width:44px;height:44px;left:28px;top:28px}#wfoKickButton{width:66px;height:66px}}
+`;
+document.head.append(wfoTacticalStyle);
+const wfoGameWrap=$('game').querySelector('.gamewrap');
+const wfoTouch=document.createElement('div');wfoTouch.id='wfoTouchControls';
+wfoTouch.innerHTML='<div id="wfoStickZone" aria-label="Joystick de movimiento"><div id="wfoStickKnob"></div></div><div id="wfoActionControls"><button id="wfoFullButton" title="Pantalla completa">⛶</button><button id="wfoKickButton" aria-label="Patear">⚽</button></div>';
+wfoGameWrap.append(wfoTouch);
+const wfoRotate=document.createElement('div');wfoRotate.id='wfoRotateHint';wfoRotate.textContent='↻ Girá el celular en horizontal para ver la cancha más grande';wfoGameWrap.append(wfoRotate);
+let wfoStickX=0,wfoStickY=0,wfoStickPointer=null;
+const wfoStickZone=$('wfoStickZone'),wfoStickKnob=$('wfoStickKnob');
+function wfoSetStick(e){
+ const r=wfoStickZone.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+ let dx=e.clientX-cx,dy=e.clientY-cy;const max=r.width*.31,len=Math.hypot(dx,dy)||1;
+ if(len>max){dx=dx/len*max;dy=dy/len*max}
+ wfoStickX=dx/max;wfoStickY=dy/max;
+ wfoStickKnob.style.transform='translate('+dx+'px,'+dy+'px)';
+ keys.arrowleft=wfoStickX<-.22;keys.arrowright=wfoStickX>.22;
+ keys.arrowup=wfoStickY<-.22;keys.arrowdown=wfoStickY>.22;
+}
+function wfoResetStick(){
+ wfoStickPointer=null;wfoStickX=0;wfoStickY=0;wfoStickKnob.style.transform='translate(0,0)';
+ keys.arrowleft=keys.arrowright=keys.arrowup=keys.arrowdown=false;
+}
+wfoStickZone.addEventListener('pointerdown',e=>{e.preventDefault();wfoStickPointer=e.pointerId;wfoStickZone.setPointerCapture(e.pointerId);wfoSetStick(e)});
+wfoStickZone.addEventListener('pointermove',e=>{if(e.pointerId===wfoStickPointer){e.preventDefault();wfoSetStick(e)}});
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>wfoStickZone.addEventListener(ev,wfoResetStick));
+const wfoKickButton=$('wfoKickButton');
+wfoKickButton.addEventListener('pointerdown',e=>{e.preventDefault();keys[' ']=true;wfoKickButton.setPointerCapture(e.pointerId)});
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>wfoKickButton.addEventListener(ev,()=>keys[' ']=false));
+$('wfoFullButton').addEventListener('click',async()=>{
+ try{if(!document.fullscreenElement)await wfoGameWrap.requestFullscreen();else await document.exitFullscreen()}catch(e){matchToast('Girá el celular para ampliar la cancha')}
+ try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(e){}
+ setTimeout(()=>{if(canvas&&ctx){resize();draw(canvas.clientWidth,canvas.clientHeight)}},250);
+});
+const wfoOldResize=resize;
+resize=function(){wfoOldResize();if(canvas&&ctx){const w=canvas.clientWidth,h=canvas.clientHeight;player.x=Math.max(28,Math.min(w-28,player.x));player.y=Math.max(28,Math.min(h-28,player.y));ball.x=Math.max(12,Math.min(w-12,ball.x));ball.y=Math.max(12,Math.min(h-12,ball.y))}};
+const wfoOldStartTactical=startMatch;
+startMatch=function(){
+ wfoResetStick();
+ wfoOldStartTactical();
+ try{if(screen.orientation&&screen.orientation.lock&&matchMedia('(max-width: 800px)').matches)screen.orientation.lock('landscape').catch(()=>{})}catch(e){}
+};
+
+/* Reemplaza la IA básica: solo presiona el jugador más cercano; el resto cubre espacios y busca desmarques. */
+let wfoAiLastBlue=0,wfoAiLastRed=0;
+function wfoMoveAI(p,tx,ty,dt,speed){
+ const dx=tx-p.x,dy=ty-p.y,d=Math.hypot(dx,dy)||1,step=Math.min(speed*dt,d);
+ p.x+=dx/d*step;p.y+=dy/d*step;
+ p.x=Math.max(25,Math.min(canvas.clientWidth-25,p.x));p.y=Math.max(25,Math.min(canvas.clientHeight-25,p.y));
+}
+function wfoTeamBrain(team,attacksRight,dt,now){
+ if(!team.length)return;
+ const w=canvas.clientWidth,h=canvas.clientHeight;
+ let chaser=0,best=Infinity;
+ team.forEach((p,i)=>{const d=Math.hypot(ball.x-p.x,ball.y-p.y);if(d<best){best=d;chaser=i}});
+ team.forEach((p,i)=>{
+  let tx,ty;
+  if(i===chaser){tx=ball.x+(attacksRight?-12:12);ty=ball.y}
+  else{
+   const lane=(i-(team.length-1)/2);
+   const baseX=attacksRight?w*(.28+.13*i):w*(.72-.13*i);
+   tx=baseX+(ball.x-w*.5)*(i===team.length-1?.16:.07);
+   ty=h*.5+lane*h*.19+(ball.y-h*.5)*.22;
+   if(attacksRight&&ball.x>w*.62&&i===team.length-1){tx=w*.78;ty=h*.5+(ball.y-h*.5)*.35}
+   if(!attacksRight&&ball.x<w*.38&&i===team.length-1){tx=w*.22;ty=h*.5+(ball.y-h*.5)*.35}
+  }
+  wfoMoveAI(p,tx,ty,dt,i===chaser?190:128);
+  const dBall=Math.hypot(ball.x-p.x,ball.y-p.y);
+  const last=attacksRight?wfoAiLastBlue:wfoAiLastRed;
+  if(dBall<31&&now-last>850){
+   const goalX=attacksRight?w-5:5,goalY=h*.5;
+   const aimY=goalY+(Math.random()-.5)*h*.22;
+   const a=Math.atan2(aimY-ball.y,goalX-ball.x);
+   ball.vx=Math.cos(a)* (attacksRight?430:-430);
+   ball.vy=Math.sin(a)*430;
+   if(attacksRight)wfoAiLastBlue=now;else wfoAiLastRed=now;
+   p.kickingUntil=now+320;
+  }
+ });
+}
+const wfoOriginalLoopTactical=loop;
+loop=function(now){
+ if(!canvas||$('game').classList.contains('hidden'))return;
+ if(wfoCelebratingUntil&&now<wfoCelebratingUntil){draw(canvas.clientWidth,canvas.clientHeight);$('score').textContent=scoreA+' - '+scoreB;raf=requestAnimationFrame(loop);return;}
+ const dt=Math.min((now-last)/1000,.04);
+ if(matchRole==='player'&&!wfoHeadMode){
+  wfoTeamBrain(blueTeam,true,dt,now);
+  wfoTeamBrain([...redTeam,opponent],false,dt,now);
+ }else if(matchRole==='player'&&wfoHeadMode){
+  const dx=ball.x-opponent.x,dy=ball.y-opponent.y,d=Math.hypot(dx,dy)||1;
+  wfoMoveAI(opponent,ball.x+dx/d*8,ball.y+dy/d*8,dt,190);
+  if(d<36&&now-wfoAiLastRed>850){const a=Math.atan2(canvas.clientHeight*.5-ball.y,8-ball.x);ball.vx=Math.cos(a)*440;ball.vy=Math.sin(a)*440;wfoAiLastRed=now}
+ }
+ wfoOriginalLoopTactical(now);
+};
+
+/* Controles claros para PC y móvil */
+const wfoHint=document.querySelector('.gamehint');
+if(wfoHint)wfoHint.textContent='WASD / flechas: moverte · ESPACIO: patear · En celular: joystick + ⚽';
+
 })();
